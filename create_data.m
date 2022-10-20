@@ -14,12 +14,12 @@ H = unifrnd(range{2}(1), range{2}(2), dy, dx);
 
 % Some zeros (some degree of separability)
 for j = 1:dx
-    idx = setdiff(datasample(1:dx, round(0.3*dx)), j);
+    idx = setdiff(datasample(1:dx, round(range{1}(3)*dx)), j);
     C(j,idx) = 0;
 end
 
 for j=1:dy
-    idx = setdiff(datasample(1:dx, round(0.1*dx)), j);
+    idx = setdiff(datasample(1:dx, round(range{2}(3)*dx)), j);
     H(j,idx) = 0;
 end
 

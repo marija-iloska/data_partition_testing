@@ -14,7 +14,7 @@ T = 40;
 
 % State dimension
 dx = 20;
-dy = 10;
+dy = 20;
 
 % State, Observation, and Proposal noise
 var_x = 1;
@@ -59,9 +59,14 @@ x_particles = rand(dx,M);
 x_old = x_particles;
 x_est = zeros(dx, T);
 
-
+% Beta selection
+B = 0.05:0.05:1;
 B = 0.2:0.2:1;
 b_size = length(B);
+beta_post = ones(1,b_size)./b_size;
+w = ones(1,M)/M;
+choice = zeros(1,T);
+choice(1) = beta;
 
 for t=2:T
 
@@ -100,7 +105,19 @@ for t=2:T
         states_idx = setdiff(states_idx, k);
     end   
 
-    % Beta
+    % Beta posterior computation
+    for b = 1:b_size
+        beta = B(b);
+        new_mean = beta*x_predicted + (1 - beta)*tr_mean;
+        new_var = beta^2*var_x + (1- beta)^2*var;
+        x_particles = mvnrnd(new_mean', new_var*eye(dx))';
+        ln_l = - (0.5/var_y)*sum( (y(:,t) - H*h(x_particles) ).^2, 1 );
+        l = exp(ln_l - max(ln_l));
+        beta_post(b) =  beta_post(b)*sum(l.*w); 
+    end
+    beta_post = beta_post./sum(beta_post);
+    beta = datasample(B, 1, 'Weights',beta_post);
+    choice(t) = beta;
 
     % SECOND STAGE
     % Propose new particles

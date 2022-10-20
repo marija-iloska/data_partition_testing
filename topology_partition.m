@@ -1,4 +1,4 @@
-function [x_est] = topology_partition(y, coeffs, fns, noise, M, beta)
+function [x_est, choice] = topology_partition(y, coeffs, fns, noise, M, B)
 
 % Extract coeffs
 C = coeffs{1};
@@ -19,6 +19,15 @@ h = fns{2};
 x_particles = rand(dx,M);
 x_old = x_particles;
 x_est = zeros(dx, T);
+
+% Beta selection initialization
+b_size = length(B);
+beta_post = ones(1,b_size)./b_size;
+
+beta = 0.2;
+w = ones(1,M)/M;
+choice = zeros(1,T);
+choice(1) = beta;
 
 for t=2:T
 
@@ -65,7 +74,26 @@ for t=2:T
         % Form proposed mean from particles with ML
         x_predicted(k) = x_particles(k, m_star(j));
         states_idx = setdiff(states_idx, k);
-    end    
+    end
+
+    % Beta posterior computation
+    for b = 1:b_size
+        beta = B(b);
+        new_mean = beta*x_predicted + (1 - beta)*tr_mean;
+        new_var = beta^2*var_x + (1- beta)^2*var;
+        x_particles = mvnrnd(new_mean', new_var*eye(dx))';
+        ln_l = - (0.5/var_y)*sum( (y(:,t) - H*h(x_particles) ).^2, 1 );
+        l = exp(ln_l - max(ln_l));
+        beta_post(b) =  beta_post(b)*sum(l.*w);
+    end
+    beta_post = beta_post./sum(beta_post);
+    if (isnan(beta_post))
+        beta = 0.2;
+        beta_post = ones(1, b_size)./b_size;
+    else
+        beta = datasample(B, 1, 'Weights',beta_post);
+    end
+    choice(t) = beta;
 
     % SECOND STAGE
     % Propose new particles
