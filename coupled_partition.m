@@ -1,4 +1,4 @@
-function [x_est, choice] = coupled_partition(y, coeffs, fns, noise, dk, M, B)
+function [x_est, choice] = coupled_partition(y, coeffs, fns, noise, dk, M, B, R)
 
 % Extract coeffs
 C = coeffs{1};
@@ -39,36 +39,44 @@ for t=2:T
     end
 
     x_predicted = mean(x_particles,2);
+
+    for run = 1:R
     states_idx = 1:dx;
 
-    % Modify proposal
-    for j = 1:dy
-
-        % Sample coupled particles
-        if (length(states_idx) >= dk)
-            k = datasample(states_idx, dk);
-        else
-            k = states_idx;
+        % Modify proposal
+        for j = 1:dy
+    
+            if (isempty(states_idx))
+                states_idx = 1:dx;
+            end
+    
+    
+            % Sample coupled particles
+            if (length(states_idx) >= dk)
+                k = datasample(states_idx, dk);
+            else
+                k = states_idx;
+            end
+    
+    
+            for m = 1:M
+                x_predicted(k) = x_particles(k,m);
+                % Compute likelihood
+                ln_p(m) = - 0.5*log(2*pi*var_y) - (0.5/var_y)*(y(j,t) - H(j,:)*h(x_predicted) ).^2;
+            end
+            p = exp(ln_p - max(ln_p));
+    
+            % Find max
+            if (length(find(p == max(p))) ~= 1)
+                m_star(j) = datasample(1:M, 1);
+            else
+                m_star(j) = find(p == max(p));
+            end
+    
+            % Form proposed mean from particles with ML
+            x_predicted(k) = x_particles(k, m_star(j));
+            states_idx = setdiff(states_idx, k);
         end
-
-
-        for m = 1:M
-            x_predicted(k) = x_particles(k,m);
-            % Compute likelihood
-            ln_p(m) = - 0.5*log(2*pi*var_y) - (0.5/var_y)*(y(j,t) - H(j,:)*h(x_predicted) ).^2;
-        end
-        p = exp(ln_p - max(ln_p));
-
-        % Find max
-        if (length(find(p == max(p))) ~= 1)
-            m_star(j) = datasample(1:M, 1);
-        else
-            m_star(j) = find(p == max(p));
-        end
-
-        % Form proposed mean from particles with ML
-        x_predicted(k) = x_particles(k, m_star(j));
-        states_idx = setdiff(states_idx, k);
     end
 
     % Beta posterior computation
@@ -116,6 +124,8 @@ for t=2:T
     x_particles = x_particles(:,idx);
     x_old = x_particles;
     x_est(:,t) = mean(x_particles,2);
+
+
 
 
 end
