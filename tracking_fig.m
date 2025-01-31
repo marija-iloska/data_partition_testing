@@ -4,7 +4,7 @@ close all
 clc
 
 % Load data
-load dy100_dx100_M50track.mat
+load dy100_dx400_M100track.mat
 
 dx = length(x(:,1));
 
